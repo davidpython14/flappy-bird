@@ -1,0 +1,201 @@
+import pygame
+import os
+import random
+
+pygame.init()
+pygame.font.init()
+pygame.mixer.init()
+
+win_h = 700
+win_w = 450
+win = pygame.display.set_mode((win_w, win_h))
+HEALTH_FONT = pygame.font.SysFont('comicsans', 40)
+
+pipe_img = pygame.transform.scale2x(pygame.image.load(os.path.join("../styles/imgs_for_flappy_bird", "pipe.png")).convert_alpha())
+bg_img = pygame.transform.scale(pygame.image.load(os.path.join("../styles/imgs_for_flappy_bird", "bg.png")).convert_alpha(), (600, 900))
+bird_images = [pygame.transform.scale2x(pygame.image.load(os.path.join("../styles/imgs_for_flappy_bird", "bird" + str(x) + ".png"))) for x in range(1, 4)]
+base_img = pygame.transform.scale2x(pygame.image.load(os.path.join("../styles/imgs_for_flappy_bird", "base.png")).convert_alpha())
+
+class base:
+    VEL = 4
+    WIDTH = base_img.get_width()
+    IMG = base_img
+
+    def __init__(self, y):
+        self.y = y
+        self.x1 = 0
+        self.x2 = self.WIDTH
+
+    def move(self):
+
+        self.x1 -= self.VEL
+        self.x2 -= self.VEL
+        if self.x1 + self.WIDTH < 0:
+            self.x1 = self.x2 + self.WIDTH
+
+        if self.x2 + self.WIDTH < 0:
+            self.x2 = self.x1 + self.WIDTH
+
+    def draw(self, win):
+        win.blit(self.IMG, (self.x1, self.y))
+        win.blit(self.IMG, (self.x2, self.y))
+
+class pipe():
+    GAP = 200
+
+    def __init__(self,VEL):
+        self.x = win_w + 30
+        self.height = 0
+        self.vel = vel
+        # where the top and bottom of the pipe is
+        self.top = 0
+        self.bottom = 0
+
+        self.PIPE_TOP = pygame.transform.flip(pipe_img, False, True)
+        self.PIPE_BOTTOM = pipe_img
+
+        self.set_height()
+        self.passed = False
+
+    def set_height(self):
+        self.height = random.randrange(50, 300)
+        self.top = self.height - self.PIPE_TOP.get_height()
+        self.bottom = self.height + self.GAP
+
+    def move(self):
+        self.x -= self.vel
+        if self.x <= -100:
+            pipes.remove(self)
+            pipes.append(pipe(self.vel))
+
+    def draw(self, win):
+        win.blit(bg_img,(0,-200))
+        win.blit(self.PIPE_TOP, (self.x, self.top))
+        win.blit(self.PIPE_BOTTOM, (self.x, self.bottom))
+
+    def collide(self):
+        global score
+        global run
+        global die
+        pipes_x_start = self.x
+        pipes_x_end = self.x + pipe_img.get_width()
+        top_y = self.top + pipe_img.get_height()
+        if not(self.passed) and pipes_x_end < player_1.x - bird_images[0].get_width() // 2:
+            score += 1
+            self.passed = True
+        if (pipes_x_start < player_1.x - 15 < pipes_x_end) or (pipes_x_start < player_1.x + bird_images[0].get_width() - 15 < pipes_x_end):
+            if player_1.y < top_y or player_1.y + bird_images[0].get_height() > self.bottom:
+                run = False
+                die = True
+
+class player():
+    def __init__(self):
+        self.y = 350
+        self.x = 100
+        self.style = bird_images[0]
+        self.val = 3
+
+    def draw(self,if_die):
+        if if_die:
+            win.blit(pygame.transform.rotate(self.style,-90), (self.x, self.y))
+        else:
+            win.blit(self.style,(self.x,self.y))
+
+    def move(self):
+        global run
+        self.y += self.val
+        if self.val < 3:
+            self.val += 0.1
+        if self.y + 145 >= win_h:
+            run = False
+            die1_text = HEALTH_FONT.render("PRESS R TO RESTART", 1, 255)
+            die2_text = HEALTH_FONT.render("YOU DIED", 1, 255)
+            win.blit(die1_text, (win_w // 2 - 215, win_h // 2 - 50))
+            win.blit(die2_text, (win_w // 2 - 110, win_h // 2 - 100))
+            pygame.display.update()
+
+    def up(self):
+        if self.val < 3:
+            self.val -= 4.5
+        else:
+            self.val -= 7.5
+
+    def set(self):
+        self.y = 200
+        self.x = 100
+        self.val = 3
+
+clock = pygame.time.Clock()
+run = True
+die = False
+FPS = 60
+vel = 2.5
+pipes = [pipe(vel)]
+bases = [base(600),base(600)]
+win.blit(bg_img,(0,-200))
+player_1 = player()
+score = 0
+repa = 0
+i = 0
+draw_fall = 0
+
+while True:
+    clock.tick(FPS)
+    repa += 1
+
+    if repa % 20 == 0:
+        i += 1
+        if i == len(bird_images):
+            i = 0
+        player_1.style = bird_images[i]
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+            pygame.quit()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                player_1.up()
+            elif event.key == pygame.K_r or event.key == pygame.K_e:
+                run = True
+                player_1.set()
+                score = 0
+                pipes = [pipe(vel)]
+                draw_fall = 0
+                die = False
+                vel = 2.5
+            elif event.key == pygame.K_p:
+                run = not(run)
+
+    if run:
+        for pip in pipes:
+            pip.draw(win)
+            pip.move()
+            pip.collide()
+            if score % 5 == 0:
+                vel += 0.005
+        for bas in bases:
+            bas.draw(win)
+            bas.move()
+        player_1.draw(False)
+        player_1.move()
+        score_text = HEALTH_FONT.render(f"score: {score}", 1, 255)
+        win.blit(score_text, (win_w // 2 - score_text.get_width() // 2, 5))
+        pygame.display.update()
+
+    elif die:
+        if draw_fall != 1:
+            draw_fall = 1
+            vel = 2.5
+            while player_1.y < 550:
+                player_1.y += 0.4
+                for pip in pipes:
+                    pip.draw(win)
+                for bas in bases:
+                    bas.draw(win)
+                die1_text = HEALTH_FONT.render("PRESS R TO RESTART", 1, 255)
+                die2_text = HEALTH_FONT.render("YOU DIED", 1, 255)
+                win.blit(die1_text, (win_w // 2 - 215, win_h // 2 - 50))
+                win.blit(die2_text, (win_w // 2 - 110, win_h // 2 - 100))
+                player_1.draw(True)
+                pygame.display.update()
